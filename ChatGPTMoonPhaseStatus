@@ -61,7 +61,7 @@ gradient.Color = ColorSequence.new({
 })
 gradient.Rotation = 90
 
--- รูปพระจันทร์จริงจาก Sky
+-- รูปพระจันทร์จริงจาก Sky (Realtime)
 local MoonImage = Instance.new("ImageLabel")
 MoonImage.Parent = frame
 MoonImage.BackgroundTransparency = 1
@@ -74,18 +74,28 @@ MoonImage.ZIndex = 101
 local MoonCorner = Instance.new("UICorner", MoonImage)
 MoonCorner.CornerRadius = UDim.new(1, 0)
 
--- ดึง MoonTextureId จาก Sky
-local sky = Lighting:FindFirstChildOfClass("Sky")
-if sky and sky.MoonTextureId ~= "" then
-    MoonImage.Image = sky.MoonTextureId
-    print("Loaded Moon Texture:", sky.MoonTextureId)
-else
-    -- ถ้าไม่มี ใช้ไอคอนสำรอง
-    MoonImage.Image = "rbxassetid://3926305904"
-    MoonImage.ImageRectSize = Vector2.new(36, 36)
-    MoonImage.ImageRectOffset = Vector2.new(4, 364)
-    warn("Sky or MoonTextureId not found, using fallback icon")
+-- ฟังก์ชันอัปเดตรูปดวงจันทร์แบบ Realtime
+local function updateMoonTexture()
+    local sky = Lighting:FindFirstChildOfClass("Sky")
+    if sky and sky.MoonTextureId ~= "" then
+        MoonImage.Image = sky.MoonTextureId
+    else
+        -- ถ้าไม่มี ใช้ไอคอนสำรอง
+        MoonImage.Image = "rbxassetid://3926305904"
+        MoonImage.ImageRectSize = Vector2.new(36, 36)
+        MoonImage.ImageRectOffset = Vector2.new(4, 364)
+    end
 end
+
+-- อัปเดตครั้งแรก
+updateMoonTexture()
+
+-- ตรวจสอบ Realtime ทุก 1 วินาที (กรณี Sky เปลี่ยน)
+task.spawn(function()
+    while task.wait(1) do
+        updateMoonTexture()
+    end
+end)
 
 -- ตัวเลข Phase (วางตรงกลาง)
 local PhaseText = Instance.new("TextLabel")
@@ -175,5 +185,3 @@ UserInputService.InputChanged:Connect(function(input)
         )
     end
 end)
-
-print("MoonHUD loaded successfully!")
