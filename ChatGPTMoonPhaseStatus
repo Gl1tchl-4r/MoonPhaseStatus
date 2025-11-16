@@ -1,0 +1,179 @@
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+-- รอให้ Player โหลดเสร็จ
+local player = Players.LocalPlayer
+if not player then
+    warn("LocalPlayer not found!")
+    return
+end
+
+local PlayerGui = player:WaitForChild("PlayerGui", 10)
+if not PlayerGui then
+    warn("PlayerGui not found!")
+    return
+end
+
+-- ลบเก่าถ้ามี
+if PlayerGui:FindFirstChild("MoonHUD") then
+    PlayerGui.MoonHUD:Destroy()
+end
+
+-- สร้าง ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "MoonHUD"
+gui.Parent = PlayerGui
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- เฟรมหลักแบบ Status Bar iPhone
+local frame = Instance.new("Frame")
+frame.Parent = gui
+frame.Size = UDim2.new(0, 120, 0, 28)
+frame.Position = UDim2.new(0.5, -60, 0.02, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BackgroundTransparency = 0.15
+frame.BorderSizePixel = 0
+frame.ZIndex = 100
+
+local UICorner = Instance.new("UICorner", frame)
+UICorner.CornerRadius = UDim.new(0, 14)
+
+local UIStroke = Instance.new("UIStroke", frame)
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Thickness = 1.2
+UIStroke.Transparency = 0.2
+
+-- เอฟเฟกต์เรืองแสงขาว
+local glowStroke = Instance.new("UIStroke", frame)
+glowStroke.Color = Color3.fromRGB(255, 255, 255)
+glowStroke.Thickness = 3.5
+glowStroke.Transparency = 0.7
+
+-- Gradient เทาดำไล่ระดับ
+local gradient = Instance.new("UIGradient", frame)
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 45, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(35, 35, 40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
+})
+gradient.Rotation = 90
+
+-- รูปพระจันทร์จริงจาก Sky
+local MoonImage = Instance.new("ImageLabel")
+MoonImage.Parent = frame
+MoonImage.BackgroundTransparency = 1
+MoonImage.Size = UDim2.new(0, 20, 0, 20)
+MoonImage.Position = UDim2.new(0, 5, 0.5, -10)
+MoonImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+MoonImage.ZIndex = 101
+
+-- ทำให้เป็นวงกลม
+local MoonCorner = Instance.new("UICorner", MoonImage)
+MoonCorner.CornerRadius = UDim.new(1, 0)
+
+-- ดึง MoonTextureId จาก Sky
+local sky = Lighting:FindFirstChildOfClass("Sky")
+if sky and sky.MoonTextureId ~= "" then
+    MoonImage.Image = sky.MoonTextureId
+    print("Loaded Moon Texture:", sky.MoonTextureId)
+else
+    -- ถ้าไม่มี ใช้ไอคอนสำรอง
+    MoonImage.Image = "rbxassetid://3926305904"
+    MoonImage.ImageRectSize = Vector2.new(36, 36)
+    MoonImage.ImageRectOffset = Vector2.new(4, 364)
+    warn("Sky or MoonTextureId not found, using fallback icon")
+end
+
+-- ตัวเลข Phase (วางตรงกลาง)
+local PhaseText = Instance.new("TextLabel")
+PhaseText.Parent = frame
+PhaseText.BackgroundTransparency = 1
+PhaseText.Font = Enum.Font.ArialBold 
+PhaseText.TextSize = 14
+PhaseText.Size = UDim2.new(1, -45, 1, 0)
+PhaseText.Position = UDim2.new(0, 30, 0, 0)
+PhaseText.TextColor3 = Color3.fromRGB(255, 255, 255)
+PhaseText.Text = "0 / 5"
+PhaseText.TextXAlignment = Enum.TextXAlignment.Center
+PhaseText.ZIndex = 101
+
+-- ฟังก์ชันอัปเดต UI
+local function updateUI()
+    local phase = Lighting:GetAttribute("MoonPhase") or 0
+    
+    -- ตรวจสอบว่าได้ค่ามา
+    print("Current Moon Phase:", phase)
+    
+    PhaseText.Text = string.format("%d / 5", phase)
+    
+    -- ปรับความสว่างของดวงจันทร์ตาม Phase
+    local brightness = phase / 5
+    MoonImage.ImageColor3 = Color3.fromRGB(
+        255 * (0.5 + brightness * 0.5),
+        255 * (0.5 + brightness * 0.5),
+        255 * (0.5 + brightness * 0.5)
+    )
+
+    if phase == 5 then
+        -- เปลี่ยนเป็นสีเขียวอมเทาเมื่อ full moon
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 80, 70)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 60, 50))
+        })
+
+        frame:TweenSize(UDim2.new(0, 125, 0, 30), "Out", "Quad", 0.2, true)
+        task.wait(0.2)
+        frame:TweenSize(UDim2.new(0, 120, 0, 28), "Out", "Quad", 0.2, true)
+    else
+        -- กลับเป็นเทาดำ
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 45, 50)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(35, 35, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
+        })
+    end
+end
+
+-- เริ่มต้นอัปเดต UI
+updateUI()
+
+-- ฟังการเปลี่ยนแปลง MoonPhase
+Lighting:GetAttributeChangedSignal("MoonPhase"):Connect(updateUI)
+
+-----------------------------------------------------
+-- ทำ UI ให้ลากได้ด้วยเมาส์
+-----------------------------------------------------
+local dragging = false
+local dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                     input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+print("MoonHUD loaded successfully!")
